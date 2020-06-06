@@ -3,7 +3,7 @@
 // Drop vectors to transition
 
 // use thunar for batch renaming
-// ffmpeg -r 8 -i xxx_%05d.png -c:v libx264 -vf fps=30 -pix_fmt yuv420p stylegan.mp4
+// ffmpeg -r 8 -i stylegan_%03d.png -c:v libx264 -vf fps=30 -pix_fmt yuv420p stylegan.mp4
 
 import drop.*;
 import com.runwayml.*;
@@ -21,12 +21,13 @@ float[] a = new float [512];
 float[] ain = new float [512];
 float[] aout = new float [512];
 
-float step = 0;
+int step = 0;
+int maxsteps = 60;
 int k = 0;
 
 void setup() {
 
-  size(1024, 1024);
+  size(512, 512);
   frameRate(30);
 
   drop = new SDrop(this);
@@ -42,7 +43,7 @@ void setup() {
 void draw() {
   if (runwayResult != null) {
     image(runwayResult, 0, 0);
-    saveFrame("gan-######.png");
+    saveFrame("export/gan-######.png");
     runwayResult = null;
   }
 }
@@ -62,12 +63,14 @@ void loadVector() {
 void oneStep() {
 
   String input = "{\"truncation\":0.8,\"z\":[";
+  
+  float T = float(step)/float(maxsteps);
 
   for (int i = 0; i < 512; i++) {
     if (i>0) {
       input += ",";
     }
-    a[i] = lerp(ain[i], aout[i], step);
+    a[i] = lerp(ain[i], aout[i], T);
     input += str(a[i]);
   }
 
@@ -91,7 +94,7 @@ void dropEvent(DropEvent theDropEvent) {
   } else {
     vin = vout;
     vout = json;
-    println("transition "+k);
+    println("transition " + k);
     loadVector();
   }
 
@@ -117,10 +120,13 @@ void runwayDataEvent(JSONObject runwayData) {
 
 void doNext() {
 
-  if (step < 1) {
-    step += .05;
+  if (step < maxsteps) {
+    step++;
+    println("step "+ step);
     oneStep();
+  } else {
+    println("DONE");
   }
 
-  println("step "+ step);
+  
 }
