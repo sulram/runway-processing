@@ -3,7 +3,7 @@
 // Drop vectors to transition
 
 // use thunar for batch renaming
-// ffmpeg -r 8 -i stylegan_%03d.png -c:v libx264 -vf fps=30 -pix_fmt yuv420p stylegan.mp4
+// ffmpeg -r 8 -i stylegan-%06d.png -c:v libx264 -vf fps=30 -pix_fmt yuv420p latent-space-walker.mp4
 
 import drop.*;
 import com.runwayml.*;
@@ -21,9 +21,12 @@ float[] a = new float [512];
 float[] ain = new float [512];
 float[] aout = new float [512];
 
+float truncation = 0.8;
+
 int step = 0;
 int maxsteps = 60;
-int k = 0;
+int vectorCount = 0;
+int frameCount = 0;
 
 void setup() {
 
@@ -43,42 +46,10 @@ void setup() {
 void draw() {
   if (runwayResult != null) {
     image(runwayResult, 0, 0);
-    saveFrame("export/gan-######.png");
+    saveFrame("export/stylegan-" + nf(frameCount,6) + ".png");
     runwayResult = null;
+    frameCount++;
   }
-}
-
-void loadVector() {
-
-  for (int i = 0; i < 512; i++ ) {
-    a[i] = vin.getFloat(i);
-    ain[i] = vin.getFloat(i);
-    aout[i] = vout.getFloat(i);
-  }
-
-  step = 0;
-  oneStep();
-}
-
-void oneStep() {
-
-  String input = "{\"truncation\":0.8,\"z\":[";
-  
-  float T = float(step)/float(maxsteps);
-
-  for (int i = 0; i < 512; i++) {
-    if (i>0) {
-      input += ",";
-    }
-    a[i] = lerp(ain[i], aout[i], T);
-    input += str(a[i]);
-  }
-
-  input += "]}";
-
-  println(input);
-
-  runway.query(input);
 }
 
 void dropEvent(DropEvent theDropEvent) {
@@ -87,18 +58,18 @@ void dropEvent(DropEvent theDropEvent) {
   println("received "+file);
   json = loadJSONArray(file);
 
-  if (k == 0) {
+  if (vectorCount == 0) {
     vin = json;
     vout = json;
     println("load one more to start");
   } else {
     vin = vout;
     vout = json;
-    println("transition " + k);
+    println("transition " + vectorCount);
     loadVector();
   }
 
-  k++;
+  vectorCount++;
 }
 
 // this is called when new Runway data is available
@@ -118,9 +89,42 @@ void runwayDataEvent(JSONObject runwayData) {
   }
 }
 
+void loadVector() {
+
+  for (int i = 0; i < 512; i++ ) {
+    a[i] = vin.getFloat(i);
+    ain[i] = vin.getFloat(i);
+    aout[i] = vout.getFloat(i);
+  }
+
+  step = 0;
+  oneStep();
+}
+
+void oneStep() {
+
+  String input = "{\"truncation\":" + str(truncation) + ",\"z\":[";
+  
+  float T = float(step)/float(maxsteps);
+
+  for (int i = 0; i < 512; i++) {
+    if (i>0) {
+      input += ",";
+    }
+    a[i] = lerp(ain[i], aout[i], T);
+    input += str(a[i]);
+  }
+
+  input += "]}";
+
+  println(input);
+
+  runway.query(input);
+}
+
 void doNext() {
 
-  if (step < maxsteps) {
+  if (step < maxsteps - 1) {
     step++;
     println("step "+ step);
     oneStep();
@@ -128,5 +132,5 @@ void doNext() {
     println("DONE");
   }
 
-  
 }
+
