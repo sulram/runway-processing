@@ -36,6 +36,8 @@ void setup() {
   
   myShader = loadShader("shader.glsl");
   
+  smooth(8);
+  
 }
 
 void draw() {
